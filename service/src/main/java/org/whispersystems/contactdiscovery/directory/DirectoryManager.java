@@ -94,6 +94,10 @@ public class DirectoryManager implements Managed {
     this.directories    = new DirectoryHashSets(directory);
   }
 
+  public boolean isConnected() {
+    return connected.get();
+  }
+
   public boolean isReady() {
     return connected.get() && built.get();
   }
