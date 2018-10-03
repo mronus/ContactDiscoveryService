@@ -24,14 +24,12 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -56,7 +54,6 @@ public class DirectoryQueueManagerTest {
     when(badMessageTwo.getMessageAttributes()).thenReturn(createMessageAttributes("", "add"));
     when(badMessageTwo.getReceiptHandle()).thenReturn("badMessageTwo");
 
-    when(directoryQueue.deleteMessages(anySet())).thenReturn(Stream.empty());
     when(directoryQueue.waitForMessages()).thenReturn(Arrays.asList(validMessageOne, validMessageTwo, badMessageOne, badMessageTwo));
 
     when(directoryManager.isConnected()).thenReturn(true);
@@ -66,15 +63,25 @@ public class DirectoryQueueManagerTest {
   public void testProcessQueue() throws Exception {
     DirectoryQueueManager queueManager = new DirectoryQueueManager(directoryQueue, directoryManager);
 
-    boolean processedQueue = queueManager.processQueue();
+    boolean processedQueueOne = queueManager.processQueue();
 
-    assertThat(processedQueue).isEqualTo(true);
+    when(directoryQueue.waitForMessages()).thenReturn(Collections.emptyList());
 
-    verify(directoryQueue).deleteMessages(eq(new HashSet<>(Arrays.asList("validMessageOne", "validMessageTwo", "badMessageOne", "badMessageTwo"))));
+    boolean processedQueueTwo   = queueManager.processQueue();
+    boolean processedQueueThree = queueManager.processQueue();
 
-    verify(directoryQueue).waitForMessages();
+    assertThat(processedQueueOne).isEqualTo(true);
+    assertThat(processedQueueTwo).isEqualTo(true);
+    assertThat(processedQueueThree).isEqualTo(true);
 
-    verify(directoryManager).isConnected();
+    verify(directoryQueue).deleteMessage(eq("validMessageOne"));
+    verify(directoryQueue).deleteMessage(eq("validMessageTwo"));
+    verify(directoryQueue).deleteMessage(eq("badMessageOne"));
+    verify(directoryQueue).deleteMessage(eq("badMessageTwo"));
+
+    verify(directoryQueue, times(3)).waitForMessages();
+
+    verify(directoryManager, times(3)).isConnected();
     verify(directoryManager).addAddress(eq(validMessageOne.getMessageAttributes().get("id").getStringValue()));
     verify(directoryManager).removeAddress(eq(validMessageTwo.getMessageAttributes().get("id").getStringValue()));
 
@@ -91,8 +98,6 @@ public class DirectoryQueueManagerTest {
     boolean processedQueue = queueManager.processQueue();
 
     assertThat(processedQueue).isEqualTo(false);
-
-    verify(directoryQueue).deleteMessages(eq(Collections.emptySet()));
 
     verify(directoryManager).isConnected();
 

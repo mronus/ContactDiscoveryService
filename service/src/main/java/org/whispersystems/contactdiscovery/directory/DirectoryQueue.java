@@ -21,26 +21,14 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
-import com.amazonaws.services.sqs.model.BatchResultErrorEntry;
-import com.amazonaws.services.sqs.model.DeleteMessageBatchRequest;
-import com.amazonaws.services.sqs.model.DeleteMessageBatchRequestEntry;
-import com.amazonaws.services.sqs.model.DeleteMessageBatchResult;
-import com.amazonaws.services.sqs.model.DeleteMessageBatchResultEntry;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.whispersystems.contactdiscovery.configuration.DirectorySqsConfiguration;
 
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class DirectoryQueue {
-
-  private final Logger logger = LoggerFactory.getLogger(DirectoryQueue.class);
 
   private static final int VISIBILITY_TIMEOUT = 30;
   private static final int WAIT_TIME          = 20;
@@ -73,30 +61,8 @@ public class DirectoryQueue {
     return receiveMessageResult.getMessages();
   }
 
-  public Stream<String> deleteMessages(Set<String> messageReceipts) {
-    if (messageReceipts.isEmpty()) {
-      return Stream.empty();
-    }
-
-    List<DeleteMessageBatchRequestEntry> deletes =
-        messageReceipts.stream()
-                       .map(receipt -> new DeleteMessageBatchRequestEntry(receipt, receipt))
-                       .collect(Collectors.toList());
-
-    DeleteMessageBatchRequest request = new DeleteMessageBatchRequest(queueUrl, deletes);
-    DeleteMessageBatchResult  result  = sqs.deleteMessageBatch(request);
-
-    result.getFailed().stream().forEach(error -> {
-      logger.error("error response deleting from directory queue: ", error.getMessage());
-    });
-
-    Stream<String> successReceipts = result.getSuccessful().stream()
-                                           .map(DeleteMessageBatchResultEntry::getId);
-    Stream<String> clientErrorReceipts = result.getFailed().stream()
-                                               .filter(BatchResultErrorEntry::isSenderFault)
-                                               .map(BatchResultErrorEntry::getId);
-
-    return Stream.concat(successReceipts, clientErrorReceipts);
+  public void deleteMessage(String messageReceipt) {
+    sqs.deleteMessage(queueUrl, messageReceipt);
   }
 
 }

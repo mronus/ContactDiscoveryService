@@ -16,6 +16,7 @@
  */
 package org.whispersystems.contactdiscovery.directory;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.codahale.metrics.Meter;
@@ -28,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import org.whispersystems.contactdiscovery.util.Constants;
 import org.whispersystems.contactdiscovery.util.Util;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -85,12 +87,7 @@ public class DirectoryQueueManager implements Managed, Runnable {
 
   @VisibleForTesting
   public boolean processQueue() throws DirectoryUnavailableException {
-    try {
-      directoryQueue.deleteMessages(messageReceipts)
-                    .forEach(messageReceipt -> messageReceipts.remove(messageReceipt));
-    } catch (Throwable t) {
-      logger.warn("error deleting from directory queue: ", t);
-    }
+    deleteMessages();
 
     if (!directoryManager.isConnected()) {
       return false;
@@ -110,6 +107,23 @@ public class DirectoryQueueManager implements Managed, Runnable {
     }
 
     return true;
+  }
+
+  private void deleteMessages() {
+    List<String> deleteMessageReceipts = new ArrayList<>(messageReceipts);
+    for (String messageReceipt : deleteMessageReceipts) {
+      try {
+        directoryQueue.deleteMessage(messageReceipt);
+        messageReceipts.remove(messageReceipt);
+      } catch (AmazonServiceException ex) {
+        if (AmazonServiceException.ErrorType.Client.equals(ex.getErrorType())) {
+          logger.error("error deleting from directory queue; skipping: ", ex);
+          messageReceipts.remove(messageReceipt);
+        } else {
+          logger.warn("error deleting from directory queue: ", ex);
+        }
+      }
+    }
   }
 
   private void processMessage(Message message)
