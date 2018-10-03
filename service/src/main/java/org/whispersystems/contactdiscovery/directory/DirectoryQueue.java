@@ -54,7 +54,9 @@ public class DirectoryQueue {
     AWSCredentials               credentials         = new BasicAWSCredentials(sqsConfig.getAccessKey(), sqsConfig.getAccessSecret());
     AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(credentials);
 
-    this.sqs      = AmazonSQSClientBuilder.standard().withCredentials(credentialsProvider).build();
+    this.sqs      = AmazonSQSClientBuilder.standard()
+                                          .withRegion(sqsConfig.getQueueRegion())
+                                          .withCredentials(credentialsProvider).build();
     this.queueUrl = sqsConfig.getQueueUrl();
   }
 
@@ -63,6 +65,7 @@ public class DirectoryQueue {
         new ReceiveMessageRequest().withQueueUrl(queueUrl)
                                    .withMaxNumberOfMessages(RECEIVE_BATCH_SIZE)
                                    .withVisibilityTimeout(VISIBILITY_TIMEOUT)
+                                   .withMessageAttributeNames("All")
                                    .withWaitTimeSeconds(WAIT_TIME);
 
     ReceiveMessageResult receiveMessageResult = sqs.receiveMessage(receiveMessageRequest);

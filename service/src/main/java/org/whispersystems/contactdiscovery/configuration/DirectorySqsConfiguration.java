@@ -33,6 +33,10 @@ public class DirectorySqsConfiguration {
   @JsonProperty
   private String queueUrl;
 
+  @NotEmpty
+  @JsonProperty
+  private String queueRegion;
+
   public String getAccessKey() {
     return accessKey;
   }
@@ -44,4 +48,9 @@ public class DirectorySqsConfiguration {
   public String getQueueUrl() {
     return queueUrl;
   }
+
+  public String getQueueRegion() {
+    return queueRegion;
+  }
+
 }
